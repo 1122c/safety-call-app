@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Supabase config (contains sensitive credentials)
+config/supabase.ts
+
 # typescript
 *.tsbuildinfo
 

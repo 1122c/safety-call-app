@@ -1,0 +1,13 @@
+// Supabase configuration
+// Copy this file to supabase.ts and fill in your actual values
+// DO NOT commit supabase.ts to version control
+
+export const supabaseConfig = {
+  url: 'YOUR_SUPABASE_URL',
+  anonKey: 'YOUR_SUPABASE_ANON_KEY',
+};
+
+// You'll need to replace these with your actual Supabase project values
+// Get them from: https://supabase.com/dashboard
+// Settings → API → Project URL and anon public key
+
