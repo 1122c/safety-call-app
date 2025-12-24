@@ -1,10 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabaseConfig } from '../config/supabase';
 
-export const supabase = createClient(
-  supabaseConfig.url,
-  supabaseConfig.anonKey
-);
+// Validate config before creating client
+const isValidUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const supabaseUrl = supabaseConfig.url && supabaseConfig.url !== 'YOUR_SUPABASE_URL' 
+  ? supabaseConfig.url 
+  : 'https://placeholder.supabase.co';
+
+const supabaseAnonKey = supabaseConfig.anonKey && supabaseConfig.anonKey !== 'YOUR_SUPABASE_ANON_KEY'
+  ? supabaseConfig.anonKey
+  : 'placeholder-key';
+
+if (!isValidUrl(supabaseUrl) || supabaseUrl === 'https://placeholder.supabase.co') {
+  console.warn(
+    '⚠️ Supabase not configured. Please update config/supabase.ts with your Supabase URL and anon key.\n' +
+    'Authentication features will not work until configured.'
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Database types
 export interface User {
