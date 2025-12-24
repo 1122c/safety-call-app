@@ -30,13 +30,25 @@ export default function LoginScreen() {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        Alert.alert('Login Failed', error.message || 'Invalid email or password');
+        let errorMessage = error.message || 'Invalid email or password';
+        
+        // Handle common Supabase errors
+        if (error.message?.includes('Email not confirmed')) {
+          errorMessage = 'Please verify your email before signing in. Check your inbox for the confirmation link.';
+        } else if (error.message?.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        }
+        
+        Alert.alert('Login Failed', errorMessage);
+        setLoading(false);
       } else {
-        // Navigation will happen automatically via auth state change
+        // Success - navigation will happen automatically via auth state change
+        // Don't set loading to false here, let the navigation happen
+        // The loading state will be reset when the component unmounts or navigates
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Something went wrong');
-    } finally {
+      console.error('Login error:', error);
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
       setLoading(false);
     }
   };

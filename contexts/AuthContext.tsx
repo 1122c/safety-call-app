@@ -44,10 +44,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await SafetyAPI.signIn(email, password);
+    const { data, error } = await SafetyAPI.signIn(email, password);
     if (!error) {
-      const { user } = await SafetyAPI.getCurrentUser();
-      setUser(user);
+      // Use the session data if available, otherwise fetch user
+      if (data?.session?.user) {
+        setUser(data.session.user);
+        setLoading(false);
+      } else {
+        // Wait a bit for auth state to update, then fetch user
+        setTimeout(async () => {
+          const { user } = await SafetyAPI.getCurrentUser();
+          setUser(user);
+          setLoading(false);
+        }, 100);
+      }
     }
     return { error };
   };

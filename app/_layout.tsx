@@ -20,13 +20,14 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inAppGroup = segments[0] === '(tabs)' || segments[0] === 'fake-call';
+    const currentRoute = segments[0];
+    const isAuthRoute = currentRoute === 'login' || currentRoute === 'signup';
+    const isAppRoute = currentRoute === '(tabs)' || currentRoute === 'fake-call';
 
-    if (!user && !inAuthGroup) {
-      // Redirect to login if not authenticated
+    if (!user && !isAuthRoute) {
+      // Redirect to login if not authenticated and not on auth screen
       router.replace('/login');
-    } else if (user && inAuthGroup) {
+    } else if (user && isAuthRoute) {
       // Redirect to home if authenticated and on auth screen
       router.replace('/(tabs)');
     }

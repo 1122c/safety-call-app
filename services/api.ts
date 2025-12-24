@@ -15,6 +15,14 @@ export class SafetyAPI {
       email,
       password,
     });
+    
+    // Log for debugging
+    if (error) {
+      console.log('Sign in error:', error.message);
+    } else {
+      console.log('Sign in success:', data?.session ? 'Session created' : 'No session');
+    }
+    
     return { data, error };
   }
 
