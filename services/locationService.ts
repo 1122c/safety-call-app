@@ -57,26 +57,41 @@ export class LocationService {
       
       const message = `${emergencyMessage} ${mapsLink}\n\nAddress: ${location.address}\nTime: ${new Date().toLocaleString()}`;
 
-      // Log the incident
-      await SafetyAPI.logSafetyIncident({
-        incident_type: 'location_share',
-        location_lat: location.latitude,
-        location_lng: location.longitude,
-        location_address: location.address,
-        timestamp: location.timestamp,
-        notes: `Shared with ${emergencyContacts.length} contacts`,
-      });
-
       // Send SMS
       const isAvailable = await SMS.isAvailableAsync();
       if (isAvailable) {
         await SMS.sendSMSAsync(emergencyContacts, message);
-        return { success: true, message: 'Location shared successfully' };
+        
+        // Log the incident (non-blocking - don't fail if logging fails)
+        try {
+          await SafetyAPI.logSafetyIncident({
+            incident_type: 'location_share',
+            location_lat: location.latitude,
+            location_lng: location.longitude,
+            location_address: location.address,
+            timestamp: location.timestamp,
+            notes: `Shared with ${emergencyContacts.length} contacts`,
+          });
+        } catch (logError) {
+          // Log error but don't fail the whole operation
+          console.warn('Failed to log incident:', logError);
+        }
+        
+        return { success: true, message: `Location shared with ${emergencyContacts.length} contact${emergencyContacts.length > 1 ? 's' : ''}` };
       } else {
         throw new Error('SMS not available on this device');
       }
-    } catch (error) {
-      throw new Error(`Failed to share location: ${error}`);
+    } catch (error: any) {
+      // Preserve original error message if it's already user-friendly
+      if (error.message && (
+        error.message.includes('No emergency contacts') ||
+        error.message.includes('permission') ||
+        error.message.includes('SMS not available') ||
+        error.message.includes('Location permission')
+      )) {
+        throw error;
+      }
+      throw new Error(`Failed to share location: ${error.message || error}`);
     }
   }
 

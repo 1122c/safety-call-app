@@ -1,7 +1,50 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { LocationService } from '../../services/locationService';
 
 export default function HomeScreen() {
+  const [sharingLocation, setSharingLocation] = useState(false);
+
+  const handleShareLocation = async () => {
+    setSharingLocation(true);
+    try {
+      const result = await LocationService.shareLocationViaSMS();
+      Alert.alert(
+        'Location Shared',
+        result.message || 'Your location has been shared with your emergency contacts.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      let errorMessage = error.message || 'Failed to share location';
+      
+      // Provide helpful error messages
+      if (errorMessage.includes('No emergency contacts')) {
+        errorMessage = 'No emergency contacts found. Please add contacts in Settings first.';
+        Alert.alert(
+          'No Contacts',
+          errorMessage,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Go to Settings',
+              onPress: () => router.push('/(tabs)/settings'),
+            },
+          ]
+        );
+        return;
+      } else if (errorMessage.includes('permission')) {
+        errorMessage = 'Location permission is required. Please enable it in your device settings.';
+      } else if (errorMessage.includes('SMS not available')) {
+        errorMessage = 'SMS is not available on this device.';
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setSharingLocation(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -17,8 +60,19 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>📞 Start Fake Call</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>📍 Share Location</Text>
+        <TouchableOpacity 
+          style={[styles.secondaryButton, sharingLocation && styles.buttonDisabled]}
+          onPress={handleShareLocation}
+          disabled={sharingLocation}
+        >
+          {sharingLocation ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#e91e63" size="small" />
+              <Text style={[styles.secondaryButtonText, { marginLeft: 8 }]}>Sharing...</Text>
+            </View>
+          ) : (
+            <Text style={styles.secondaryButtonText}>📍 Share Location</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton}>
@@ -91,5 +145,13 @@ const styles = StyleSheet.create({
     color: '#e91e63',
     fontSize: 16,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
