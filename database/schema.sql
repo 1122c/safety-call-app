@@ -1,8 +1,9 @@
 -- Safety Call App Database Schema
 -- Run this in your Supabase SQL editor
 
--- Enable Row Level Security
-ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+-- Note: auth.users RLS is already enabled by Supabase by default
+-- The line below is not needed and will cause a permission error
+-- ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 
 -- Create emergency_contacts table
 CREATE TABLE emergency_contacts (
