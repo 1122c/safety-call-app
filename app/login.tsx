@@ -12,13 +12,40 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const REMEMBER_ME_KEY = '@safety_call_remember_me';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true); // Default to true
   const { signIn } = useAuth();
   const router = useRouter();
+
+  // Load remember me preference on mount
+  React.useEffect(() => {
+    loadRememberMePreference();
+  }, []);
+
+  const loadRememberMePreference = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(REMEMBER_ME_KEY);
+      if (saved !== null) {
+        setRememberMe(JSON.parse(saved));
+        // If remember me was true and we have saved email, load it
+        if (JSON.parse(saved)) {
+          const savedEmail = await AsyncStorage.getItem('@safety_call_email');
+          if (savedEmail) {
+            setEmail(savedEmail);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading remember me preference:', error);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -28,6 +55,17 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      // Save remember me preference
+      await AsyncStorage.setItem(REMEMBER_ME_KEY, JSON.stringify(rememberMe));
+      
+      // Save email if remember me is enabled
+      if (rememberMe) {
+        await AsyncStorage.setItem('@safety_call_email', email);
+      } else {
+        // Clear saved email if remember me is disabled
+        await AsyncStorage.removeItem('@safety_call_email');
+      }
+
       const { error } = await signIn(email, password);
       if (error) {
         let errorMessage = error.message || 'Invalid email or password';
@@ -43,6 +81,7 @@ export default function LoginScreen() {
         setLoading(false);
       } else {
         // Success - navigation will happen automatically via auth state change
+        // Supabase already handles session persistence, so user will stay logged in
         // Don't set loading to false here, let the navigation happen
         // The loading state will be reset when the component unmounts or navigates
       }
@@ -91,6 +130,17 @@ export default function LoginScreen() {
               autoComplete="password"
             />
           </View>
+
+          <TouchableOpacity
+            style={styles.rememberMeContainer}
+            onPress={() => setRememberMe(!rememberMe)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+              {rememberMe && <Text style={styles.checkboxCheck}>✓</Text>}
+            </View>
+            <Text style={styles.rememberMeText}>Keep me signed in</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -195,6 +245,36 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#e91e63',
     fontWeight: '600',
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#e91e63',
+    borderColor: '#e91e63',
+  },
+  checkboxCheck: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: '#2c3e50',
   },
 });
 

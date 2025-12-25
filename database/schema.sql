@@ -120,8 +120,8 @@ CREATE TRIGGER update_user_profiles_updated_at
   BEFORE UPDATE ON user_profiles 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert some sample data (optional)
--- You can remove this section if you don't want sample data
+-- Insert some sample data
+-- sample data for testing
 INSERT INTO
     user_profiles (
         user_id,
