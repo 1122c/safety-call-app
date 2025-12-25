@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
 
@@ -42,25 +42,8 @@ export default function FakeCallScreen() {
     return () => clearInterval(interval);
   }, [callState]);
 
-  // Configure audio session for iOS
+  // Cleanup: Stop speech when component unmounts
   useEffect(() => {
-    const configureAudio = async () => {
-      try {
-        // Set audio mode for iOS to allow playback even in silent mode
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          allowsRecordingIOS: false,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
-      } catch (error) {
-        console.log('Audio configuration error:', error);
-      }
-    };
-    
-    configureAudio();
-    
     return () => {
       Speech.stop();
     };
@@ -68,47 +51,47 @@ export default function FakeCallScreen() {
 
   const playScript = async () => {
     try {
-      // Configure audio mode before speaking (especially important for iOS)
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-      
-      const scriptText = "Hey, I'm almost there. I can see the building now. Just parking the car.";
-      
       // Stop any existing speech first
       Speech.stop();
       
-      // Small delay to ensure audio session is ready
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait a moment to ensure any previous speech is fully stopped
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Speak the script with iOS-optimized settings
+      const scriptText = "Hey, I'm almost there. I can see the building now. Just parking the car.";
+      
       setIsSpeaking(true);
       
+      // Try with minimal options first - Expo Go sometimes has issues with complex options
+      console.log('🔊 Starting speech...');
+      console.log('📱 Platform:', Platform.OS);
+      
+      // For Expo Go on iOS, use the simplest possible call
       Speech.speak(scriptText, {
-        language: Platform.OS === 'ios' ? 'en-US' : 'en',
+        language: 'en-US',
         pitch: 1.0,
-        rate: 0.8, // Slightly slower for natural speech
+        rate: 0.75,
         volume: 1.0,
-        onDone: () => {
-          console.log('✅ Speech finished successfully');
-          setIsSpeaking(false);
-        },
-        onStopped: () => {
-          console.log('⏹ Speech was stopped');
-          setIsSpeaking(false);
-        },
       });
       
-      console.log('🔊 Attempting to speak:', scriptText);
-      console.log('📱 Platform:', Platform.OS);
+      // Set up callbacks separately
+      setTimeout(() => {
+        setIsSpeaking(false);
+        console.log('✅ Speech should have completed');
+      }, 5000); // Fallback timeout
+      
+      console.log('🔊 Speech command sent:', scriptText);
       
     } catch (error) {
       console.error('❌ Error in playScript:', error);
       setIsSpeaking(false);
+      
+      // Fallback: Try even simpler version
+      try {
+        console.log('🔄 Trying fallback simple speech...');
+        Speech.speak("Hey, I'm almost there. I can see the building now. Just parking the car.");
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+      }
     }
   };
 
@@ -205,7 +188,18 @@ export default function FakeCallScreen() {
           {!isSpeaking && (
             <TouchableOpacity 
               style={styles.testButton}
-              onPress={playScript}
+              onPress={() => {
+                console.log('🧪 Test button pressed');
+                playScript();
+                // Show alert to help debug
+                setTimeout(() => {
+                  Alert.alert(
+                    'Voice Test',
+                    'Did you hear the voice? If not, this might be an Expo Go limitation. Text-to-speech may require a development build.',
+                    [{ text: 'OK' }]
+                  );
+                }, 3000);
+              }}
             >
               <Text style={styles.testButtonText}>🔊 Test Voice (Tap to replay)</Text>
             </TouchableOpacity>
