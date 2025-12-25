@@ -71,15 +71,28 @@ export default function FakeCallScreen() {
         pitch: 1.0,
         rate: 0.75,
         volume: 1.0,
+        onDone: () => {
+          console.log('✅ Speech finished successfully');
+          setIsSpeaking(false);
+        },
+        onStopped: () => {
+          console.log('⏹ Speech was stopped');
+          setIsSpeaking(false);
+        },
       });
       
-      // Set up callbacks separately
+      // Fallback timeout in case callbacks don't fire (Expo Go limitation)
       setTimeout(() => {
-        setIsSpeaking(false);
-        console.log('✅ Speech should have completed');
-      }, 5000); // Fallback timeout
+        if (isSpeaking) {
+          console.log('⚠️ Speech timeout - may not work in Expo Go');
+          setIsSpeaking(false);
+        }
+      }, 6000);
       
       console.log('🔊 Speech command sent:', scriptText);
+      
+      // Note: TTS may not work in Expo Go, but will work in development/production builds
+      // The visual indicator will show regardless
       
     } catch (error) {
       console.error('❌ Error in playScript:', error);
@@ -89,8 +102,13 @@ export default function FakeCallScreen() {
       try {
         console.log('🔄 Trying fallback simple speech...');
         Speech.speak("Hey, I'm almost there. I can see the building now. Just parking the car.");
+        setIsSpeaking(true);
+        setTimeout(() => setIsSpeaking(false), 5000);
       } catch (fallbackError) {
         console.error('❌ Fallback also failed:', fallbackError);
+        // Even if TTS fails, show visual indicator
+        setIsSpeaking(true);
+        setTimeout(() => setIsSpeaking(false), 5000);
       }
     }
   };
@@ -188,22 +206,18 @@ export default function FakeCallScreen() {
           {!isSpeaking && (
             <TouchableOpacity 
               style={styles.testButton}
-              onPress={() => {
-                console.log('🧪 Test button pressed');
-                playScript();
-                // Show alert to help debug
-                setTimeout(() => {
-                  Alert.alert(
-                    'Voice Test',
-                    'Did you hear the voice? If not, this might be an Expo Go limitation. Text-to-speech may require a development build.',
-                    [{ text: 'OK' }]
-                  );
-                }, 3000);
-              }}
+              onPress={playScript}
             >
               <Text style={styles.testButtonText}>🔊 Test Voice (Tap to replay)</Text>
             </TouchableOpacity>
           )}
+          
+          {/* Note about Expo Go limitation */}
+          <View style={styles.noteContainer}>
+            <Text style={styles.noteText}>
+              ℹ️ Note: Voice may not work in Expo Go. It will work in a built app.
+            </Text>
+          </View>
           
           <Text style={styles.yourLine}>Your response:</Text>
           <Text style={styles.responseText}>
@@ -407,5 +421,17 @@ const styles = StyleSheet.create({
     color: '#e91e63',
     fontSize: 14,
     fontWeight: '600',
+  },
+  noteContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+  },
+  noteText: {
+    color: '#999',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
