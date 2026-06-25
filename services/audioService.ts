@@ -5,8 +5,8 @@ export class AudioService {
 
   static async playTestVoice() {
     try {
-      // For now, we'll use a simple beep sound
-      // Later you can replace this with actual TTS or pre-recorded audio
+      // For now  use a simple beep sound
+      // replace this with actual TTS or pre-recorded audio
       const { sound } = await Audio.Sound.createAsync(
         { uri: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' },
         { shouldPlay: true, volume: 0.8 }
