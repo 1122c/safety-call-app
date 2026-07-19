@@ -1,77 +1,71 @@
-import { Audio } from 'expo-av';
+import { Audio, AVPlaybackStatus } from 'expo-av';
+
+// Drop your QuickTime recording here as: assets/audio/call-script.m4a
+const CALL_SCRIPT = require('../assets/audio/call-script.m4a');
+
+/**
+ * Playback rate controls pitch when shouldCorrectPitch is false.
+ * 1.0 = original recording
+ * 0.92 = slightly deeper
+ * 0.85 = noticeably deeper (also a bit slower)
+ */
+export const CALL_SCRIPT_PITCH_RATE = 0.88;
 
 export class AudioService {
   private static sound: Audio.Sound | null = null;
+  private static audioModeConfigured = false;
 
-  static async playTestVoice() {
-    try {
-      // For now  use a simple beep sound
-      // replace this with actual TTS or pre-recorded audio
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' },
-        { shouldPlay: true, volume: 0.8 }
-      );
-      
-      this.sound = sound;
-      
-      // Auto-stop after 3 seconds
-      setTimeout(() => {
-        this.stopAll();
-      }, 3000);
-      
-      return sound;
-    } catch (error) {
-      console.log('Audio playback error:', error);
-      // Fallback: just log that audio would play
-      console.log('Would play: "Hey, I\'m almost there. I can see the building now."');
-    }
+  static async configureAudioMode() {
+    if (this.audioModeConfigured) return;
+
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+
+    this.audioModeConfigured = true;
+  }
+
+  static async playCallScript(
+    onFinished?: () => void,
+    pitchRate: number = CALL_SCRIPT_PITCH_RATE
+  ) {
+    await this.configureAudioMode();
+    await this.stopAll();
+
+    const { sound } = await Audio.Sound.createAsync(
+      CALL_SCRIPT,
+      { shouldPlay: false, volume: 1.0 },
+      (status: AVPlaybackStatus) => {
+        if (!status.isLoaded) return;
+        if (status.didJustFinish) {
+          onFinished?.();
+        }
+      }
+    );
+
+    this.sound = sound;
+
+    // false = pitch drops as rate goes below 1.0
+    await sound.setRateAsync(pitchRate, false);
+    await sound.playAsync();
+
+    return sound;
   }
 
   static async stopAll() {
-    if (this.sound) {
-      try {
-        await this.sound.unloadAsync();
-        this.sound = null;
-      } catch (error) {
-        console.log('Error stopping audio:', error);
-      }
-    }
-  }
+    if (!this.sound) return;
 
-  static async playIncomingCallSound() {
     try {
-      // Play a ringtone-like sound
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' },
-        { 
-          shouldPlay: true, 
-          volume: 0.6,
-          isLooping: true 
-        }
-      );
-      
-      this.sound = sound;
-      return sound;
+      await this.sound.stopAsync();
+      await this.sound.unloadAsync();
     } catch (error) {
-      console.log('Incoming call sound error:', error);
-    }
-  }
-
-  static async playCallEndSound() {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' },
-        { shouldPlay: true, volume: 0.4 }
-      );
-      
-      // Auto-stop after 1 second
-      setTimeout(() => {
-        this.stopAll();
-      }, 1000);
-      
-      return sound;
-    } catch (error) {
-      console.log('Call end sound error:', error);
+      console.log('Error stopping audio:', error);
+    } finally {
+      this.sound = null;
     }
   }
 }

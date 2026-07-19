@@ -5,12 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import { AudioService } from '../services/audioService';
 
 const { width } = Dimensions.get('window');
 
@@ -42,74 +41,36 @@ export default function FakeCallScreen() {
     return () => clearInterval(interval);
   }, [callState]);
 
-  // Cleanup: Stop speech when component unmounts
   useEffect(() => {
+    AudioService.configureAudioMode();
+
     return () => {
+      AudioService.stopAll();
       Speech.stop();
     };
   }, []);
 
   const playScript = async () => {
+    const scriptText =
+      "Hey, I'm almost there. I can see the building now. Open the door for me.";
+
+    setIsSpeaking(true);
+    Speech.stop();
+    await AudioService.stopAll();
+
     try {
-      // Stop any existing speech first
-      Speech.stop();
-      
-      // Wait a moment to ensure any previous speech is fully stopped
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      const scriptText = "Hey, I'm almost there. I can see the building now. Just parking the car.";
-      
-      setIsSpeaking(true);
-      
-      // Try with minimal options first - Expo Go sometimes has issues with complex options
-      console.log('🔊 Starting speech...');
-      console.log('📱 Platform:', Platform.OS);
-      
-      // For Expo Go on iOS, use the simplest possible call
+      await AudioService.playCallScript(() => setIsSpeaking(false));
+    } catch (error) {
+      console.error('Recorded voice failed, falling back to TTS:', error);
+
       Speech.speak(scriptText, {
         language: 'en-US',
-        pitch: 1.0,
+        pitch: 0.8,
         rate: 0.75,
         volume: 1.0,
-        onDone: () => {
-          console.log('✅ Speech finished successfully');
-          setIsSpeaking(false);
-        },
-        onStopped: () => {
-          console.log('⏹ Speech was stopped');
-          setIsSpeaking(false);
-        },
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
       });
-      
-      // Fallback timeout in case callbacks don't fire (Expo Go limitation)
-      setTimeout(() => {
-        if (isSpeaking) {
-          console.log('⚠️ Speech timeout - may not work in Expo Go');
-          setIsSpeaking(false);
-        }
-      }, 6000);
-      
-      console.log('🔊 Speech command sent:', scriptText);
-      
-      // Note: TTS may not work in Expo Go, but will work in development/production builds
-      // The visual indicator will show regardless
-      
-    } catch (error) {
-      console.error('❌ Error in playScript:', error);
-      setIsSpeaking(false);
-      
-      // Fallback: Try even simpler version
-      try {
-        console.log('🔄 Trying fallback simple speech...');
-        Speech.speak("Hey, I'm almost there. I can see the building now. Just parking the car.");
-        setIsSpeaking(true);
-        setTimeout(() => setIsSpeaking(false), 5000);
-      } catch (fallbackError) {
-        console.error('❌ Fallback also failed:', fallbackError);
-        // Even if TTS fails, show visual indicator
-        setIsSpeaking(true);
-        setTimeout(() => setIsSpeaking(false), 5000);
-      }
     }
   };
 
@@ -125,14 +86,14 @@ export default function FakeCallScreen() {
   };
 
   const declineCall = async () => {
-    // Stop any ongoing speech (in case user declines quickly)
+    await AudioService.stopAll();
     Speech.stop();
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     router.back();
   };
 
   const endCall = async () => {
-    // Stop any ongoing speech
+    await AudioService.stopAll();
     Speech.stop();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
@@ -155,7 +116,7 @@ export default function FakeCallScreen() {
               <Text style={styles.avatarText}>MJ</Text>
             </View>
             <Text style={styles.callerName}>Michael Johnson</Text>
-            <Text style={styles.callerNumber}>Mobile +1 (555) 123-4567</Text>
+            <Text style={styles.callerNumber}>Mobile +1 (213) 542-9441</Text>
           </View>
 
           <View style={styles.actions}>
@@ -193,7 +154,7 @@ export default function FakeCallScreen() {
           <Text style={styles.scriptLabel}>Conversation Script:</Text>
           <View style={styles.scriptBox}>
             <Text style={styles.scriptText}>
-              "Hey, I'm almost there. I can see the building now. Just parking the car."
+              "Hey, I'm almost there. I can see the building now. Open the door for me."
             </Text>
             {isSpeaking && (
               <View style={styles.speakingIndicator}>
@@ -212,13 +173,7 @@ export default function FakeCallScreen() {
             </TouchableOpacity>
           )}
           
-          {/* Note about Expo Go limitation */}
-          <View style={styles.noteContainer}>
-            <Text style={styles.noteText}>
-              ℹ️ Note: Voice may not work in Expo Go. It will work in a built app.
-            </Text>
-          </View>
-          
+          {/* might need to change this after testing. test first */}
           <Text style={styles.yourLine}>Your response:</Text>
           <Text style={styles.responseText}>
             "Great! I'm waiting right by the entrance."
@@ -421,17 +376,5 @@ const styles = StyleSheet.create({
     color: '#e91e63',
     fontSize: 14,
     fontWeight: '600',
-  },
-  noteContainer: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-  },
-  noteText: {
-    color: '#999',
-    fontSize: 12,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
 });
